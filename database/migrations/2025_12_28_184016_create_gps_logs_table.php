@@ -11,15 +11,16 @@ return new class extends Migration
      */
     public function up(): void
     {
-       Schema::create('bus_locations', function (Blueprint $table) {
+       Schema::create('gps_logs', function (Blueprint $table) {
     $table->id();
     $table->foreignId('bus_id')->constrained()->cascadeOnDelete();
     $table->decimal('lat', 10, 7);
     $table->decimal('lng', 10, 7);
-    $table->float('speed')->default(0);   
-    $table->float('heading')->default(0); 
+    $table->float('speed')->nullable();
+    $table->float('heading')->nullable(); 
     $table->boolean('is_online')->default(true);
-    $table->timestamp('recorded_at');     // أضف هاد
+    $table->timestamp('recorded_at');
+    $table->index(['bus_id', 'recorded_at']); 
     $table->timestamps();
 });
     }
@@ -29,6 +30,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('bus_locations');
+        Schema::dropIfExists('gps_logs');
     }
 };

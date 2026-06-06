@@ -11,13 +11,12 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('route_paths', function (Blueprint $table) {
+        Schema::create('favorites', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('route_id')->constrained()->cascadeOnDelete();
-            $table->decimal('lat',10,7);
-            $table->decimal('lng',10,7);
-            $table->integer('order_index')->default(0);
-            $table->timestamps();
+    $table->foreignId('user_id')->constrained()->cascadeOnDelete();
+    $table->nullableMorphs('favorable'); // favorable_type + favorable_id
+    $table->string('custom_label')->nullable();
+    $table->timestamps();
         });
     }
 
@@ -26,6 +25,6 @@ return new class extends Migration
      */
     public function down(): void
     {
-        Schema::dropIfExists('route_paths');
+        Schema::dropIfExists('favorites');
     }
 };

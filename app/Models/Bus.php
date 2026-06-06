@@ -1,24 +1,13 @@
 <?php
-
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Factories\HasFactory;
 
 class Bus extends Model
 {
- use HasFactory;
-
     protected $fillable = [
-        'route_id',
-        'number',
-        'type',
-        'capacity',
-        'is_active',
-    ];
-
-    protected $casts = [
-        'is_active' => 'boolean',
+        'route_id', 'gps_device_id', 'plate_number',
+        'type', 'capacity', 'status',
     ];
 
     public function route()
@@ -26,8 +15,27 @@ class Bus extends Model
         return $this->belongsTo(Route::class);
     }
 
+    public function gpsDevice()
+    {
+        return $this->belongsTo(GpsDevice::class);
+    }
+
+    public function location()
+    {
+        return $this->hasOne(BusLocation::class)->latestOfMany();
+    }
+
     public function locations()
     {
-        return $this->hasMany(BusLocations::class)->latest();
+        return $this->hasMany(BusLocation::class);
     }
+
+    public function gpsLogs()
+    {
+        return $this->hasMany(GpsLog::class);
+    }
+    public function favorites()
+{
+    return $this->morphMany(Favorite::class, 'favorable');
+}
 }

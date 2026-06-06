@@ -13,12 +13,12 @@ return new class extends Migration
     {
         Schema::create('buses', function (Blueprint $table) {
             $table->id();
-            $table->foreignId('route_id')->constrained()->cascadeOnDelete();
-            $table->integer('number')->unique();
-            $table->enum('type',['car','bus'])->default('bus');
-            $table->integer('capacity');
-            $table->boolean('is_active')->default(true);
-            $table->timestamps();
+    $table->foreignId('route_id')->constrained()->cascadeOnDelete();
+    $table->foreignId('gps_device_id')->nullable()->constrained()->nullOnDelete();
+    $table->string('plate_number')->unique();
+    $table->enum('type', ['car', 'bus'])->default('bus');
+    $table->enum('status', ['active', 'stopped', 'out_of_service'])->default('active');
+    $table->timestamps();
         });
     }
 

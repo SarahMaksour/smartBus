@@ -11,17 +11,14 @@ return new class extends Migration
      */
     public function up(): void
     {
-        Schema::create('routes', function (Blueprint $table) {
-            $table->id();
+       Schema::create('routes', function (Blueprint $table) {
+    $table->id();
     $table->string('code')->unique();
     $table->string('name');
+    $table->string('direction')->default('outbound');
     $table->boolean('is_active')->default(true);
-    $table->decimal('start_lat', 10, 7)->nullable();
-    $table->decimal('start_lng', 10, 7)->nullable();
-    $table->decimal('end_lat', 10, 7)->nullable();
-    $table->decimal('end_lng', 10, 7)->nullable();
     $table->timestamps();
-        });
+});
     }
 
     /**
