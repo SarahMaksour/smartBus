@@ -40,7 +40,7 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::get('map-data',        [HomeController::class, 'mapData'])->name('map-data');
     });
 
-     Route::prefix('buses')->name('buses.')->group(function () {
+     Route::prefix('buses')->group(function () {
         Route::get('/', [BusController::class, 'index'])->name('index');
     });
 });
