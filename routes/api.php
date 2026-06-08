@@ -39,4 +39,8 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
         Route::get('nearby-stations', [HomeController::class, 'nearbyStations'])->name('nearby-stations');
         Route::get('map-data',        [HomeController::class, 'mapData'])->name('map-data');
     });
+
+     Route::prefix('buses')->name('buses.')->group(function () {
+        Route::get('/', [BusController::class, 'index'])->name('index');
+    });
 });

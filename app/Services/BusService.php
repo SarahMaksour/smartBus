@@ -1,37 +1,18 @@
 <?php
-
 namespace App\Services;
 
-use App\Repositories\BusRepository;
+use App\Repositories\Contracts\RouteRepositoryInterface;
+use App\Services\Contracts\BusServiceInterface;
+use Illuminate\Support\Collection;
 
-class BusService
+class BusService implements BusServiceInterface
 {
-    protected $busRepository;
-    public function __construct(BusRepository $busRepository)
-    {
-        $this->busRepository = $busRepository;
-    }
-    public function getAllBuses()
-    {
-        return $this->busRepository->getAllBuses()->map(function ($bus) {
-            return [
-                'id'         => $bus->id,
-                'bus_number' => $bus->bus_number,
-                'route_id'   => $bus->route_id,
-                'status'     => $bus->is_active ? 'online' : 'offline',
-            ];
-        });
-    }
-    public function getById($id)
-    {
-        $bus = $this->busRepository->findById($id);
+    public function __construct(
+        private readonly RouteRepositoryInterface $routeRepository,
+    ) {}
 
-        return [
-            'id'         => $bus->id,
-            'bus_number' => $bus->bus_number,
-            'route_id'   => $bus->route_id,
-            'status'     => $bus->is_active ? 'online' : 'offline',
-            'capacity'   => $bus->capacity,
-        ];
+    public function getAllLines(?string $search): Collection
+    {
+        return $this->routeRepository->getAllActive($search);
     }
 }
