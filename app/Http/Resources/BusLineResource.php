@@ -13,7 +13,6 @@ class BusLineResource extends JsonResource
             'id'            => $this->id,
             'code'          => $this->code,
             'name'          => $this->name,
-            'direction'     => $this->direction,
             'is_active'     => $this->is_active,
             'buses_count'   => $activeBuses->count(),
             'next_arrival'  => $this->getNextArrival($activeBuses),
