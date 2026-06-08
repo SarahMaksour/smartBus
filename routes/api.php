@@ -1,8 +1,8 @@
 <?php
 
+use App\Http\Controllers\Api\BusController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Auth\AuthController;
-use App\Http\Controllers\Bus\BusController;
 use App\Http\Controllers\GPS\DeviceGPSController;
 use App\Http\Controllers\GPS\GPSController;
 use App\Http\Controllers\Route\RouteController;
@@ -21,9 +21,7 @@ Route::post('/gps/update-location', [GPSController::class, 'update']);
 Route::get('/bus/live', [GPSController::class, 'live']);
 Route::get('/bus/{id}/location', [GPSController::class, 'location']);
 Route::post('/device/gps', [DeviceGPSController::class, 'receive']);
-//buses
-Route::get('/buses', [BusController::class, 'index']);
-Route::get('/buses/{id}', [BusController::class, 'show']);
+
 //route
 Route::get('/routes', [RouteController::class, 'index']);
 Route::get('/routes/{id}', [RouteController::class, 'show']);
