@@ -3,6 +3,7 @@
 use App\Http\Controllers\Api\BusController;
 use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\HomeController;
+use App\Http\Controllers\Api\RouteSearchController;
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\GPS\DeviceGPSController;
 use App\Http\Controllers\GPS\GPSController;
@@ -45,5 +46,5 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
  
     Route::get('/favorites', [FavoriteController::class, 'index']);
     Route::post('/favorites/toggle', [FavoriteController::class, 'toggle']);
-
+Route::post('routes/search', [RouteSearchController::class, 'search']);
 });
