@@ -34,7 +34,7 @@ class FavoriteService
     private function resolveModel($type)
     {
         return match ($type) {
-            'line' => \App\Models\Route::class,
+            'route' => \App\Models\Route::class,
             'station' => \App\Models\Station::class,
             default => throw new \Exception("Invalid type")
         };
