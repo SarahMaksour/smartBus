@@ -17,13 +17,67 @@ class ArrivalCalculator
      *
      * @return array{distance_meters: float, minutes_away: int}|null
      */
+    private function calculateBearing(
+    float $lat1,
+    float $lng1,
+    float $lat2,
+    float $lng2
+): float {
+
+    $lat1 = deg2rad($lat1);
+    $lat2 = deg2rad($lat2);
+
+    $deltaLng = deg2rad($lng2 - $lng1);
+
+    $y = sin($deltaLng) * cos($lat2);
+
+    $x =
+        cos($lat1) * sin($lat2)
+        - sin($lat1) * cos($lat2) * cos($deltaLng);
+
+    $bearing = rad2deg(atan2($y, $x));
+
+    return fmod(($bearing + 360), 360);
+}
+
+private function isMovingTowardStation(
+    Bus $bus,
+    RouteStation $station
+): bool {
+
+    $location = $bus->location;
+
+    if (!$location || $location->heading === null) {
+        return true;
+    }
+
+    $targetBearing = $this->calculateBearing(
+        (float) $location->lat,
+        (float) $location->lng,
+        (float) $station->station->lat,
+        (float) $station->station->lng
+    );
+
+    $heading = (float) $location->heading;
+
+    $difference = abs($heading - $targetBearing);
+
+    if ($difference > 180) {
+        $difference = 360 - $difference;
+    }
+
+    return $difference <= 90;
+}
     public function calculate(Bus $bus, RouteStation $targetStation): ?array
     {
         $location = $bus->location;
+if (!$location) {
+    return null;
+}
 
-        if (!$location) {
-            return null;
-        }
+if (!$this->isMovingTowardStation($bus, $targetStation)) {
+    return null;
+}
 
         // 1. المسافة المباشرة من الباص للمحطة الهدف (خط مستقيم)
         $directDistance = DistanceCalculator::haversine(
@@ -36,10 +90,7 @@ class ArrivalCalculator
         // 2. لاقي أقرب محطة سابقة للباص على نفس الخط (لتقدير موقعه على المسار)
         $nearestPassedStation = $this->findNearestStationOnRoute($bus, $targetStation);
 
-        // 3. إذا الباص جاوز المحطة الهدف فعلياً (ترتيبه أكبر) → ما رايح يوصلها
-        if ($nearestPassedStation && $nearestPassedStation->order_index >= $targetStation->order_index) {
-            return null;
-        }
+        
 
         // 4. احسب المسافة المتبقية على المسار باستخدام distance_from_start المخزنة
         $routeDistance = null;
