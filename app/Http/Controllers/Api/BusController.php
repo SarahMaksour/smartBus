@@ -17,7 +17,10 @@ class BusController extends Controller
         $lines = $this->busService->getAllLines(
             search: $request->string('search')->value(),
         );
-
+ $lines->each(function ($line) use ($request) {
+        $line->user_lat = (float) $request->lat;
+        $line->user_lng = (float) $request->lng;
+    });
         return BusLineResource::collection($lines);
     }
 }

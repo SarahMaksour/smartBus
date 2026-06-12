@@ -23,6 +23,25 @@ class BusLineResource extends JsonResource
         ];
     }
 
+     private function getNearestStationForUser(
+    float $userLat,
+    float $userLng
+): ?RouteStation {
+
+    return RouteStation::where('route_id', $this->id)
+        ->with('station')
+        ->get()
+        ->sortBy(function ($routeStation) use ($userLat, $userLng) {
+
+            return \App\Services\DistanceCalculator::haversine(
+                $userLat,
+                $userLng,
+                $routeStation->station->lat,
+                $routeStation->station->lng
+            );
+        })
+        ->first();
+}
     /**
      * أقل وقت وصول من كل الباصات الشغالة على الخط للمحطة الأولى
      */
@@ -33,23 +52,29 @@ class BusLineResource extends JsonResource
         }
 
         // أول محطة بالخط (نقطة الانطلاق)
-        $firstStation = RouteStation::where('route_id', $this->id)
-            ->with('station')
-            ->orderBy('order_index')
-            ->first();
+      $userLat = $this->user_lat;
+$userLng = $this->user_lng;
 
-        if (!$firstStation) {
-            return null;
-        }
+$nearestStation = $this->getNearestStationForUser(
+    $userLat,
+    $userLng
+);
 
-        $calculator = new ArrivalCalculator();
+if (!$nearestStation) {
+    return null;
+}
 
-        $times = $activeBuses
-            ->map(fn($bus) => $calculator->calculate($bus, $firstStation))
-            ->filter() // يشيل null
-            ->map(fn($result) => $result['minutes_away']);
+      $calculator = new ArrivalCalculator();
 
-        return $times->isEmpty() ? null : $times->min();
+$times = $activeBuses
+    ->map(fn ($bus) => $calculator->calculate(
+        $bus,
+        $nearestStation
+    ))
+    ->filter()
+    ->pluck('minutes_away');
+
+return $times->min();
     }
 
     /**

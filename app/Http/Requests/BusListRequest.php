@@ -23,6 +23,8 @@ class BusListRequest extends FormRequest
     {
       return [
             'search' => ['nullable', 'string', 'max:100'],
+             'lat' => ['required', 'numeric'],
+             'lng' => ['required', 'numeric'],
         ];
     }
 }
