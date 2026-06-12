@@ -1,6 +1,8 @@
 <?php
 namespace App\Http\Resources;
 
+use App\Models\RouteStation;
+use App\Services\ArrivalCalculator;
 use Illuminate\Http\Resources\Json\JsonResource;
 
 class BusLineResource extends JsonResource
@@ -13,6 +15,7 @@ class BusLineResource extends JsonResource
             'id'            => $this->id,
             'code'          => $this->code,
             'name'          => $this->name,
+            'direction'     => $this->direction,
             'is_active'     => $this->is_active,
             'buses_count'   => $activeBuses->count(),
             'next_arrival'  => $this->getNextArrival($activeBuses),
@@ -20,14 +23,38 @@ class BusLineResource extends JsonResource
         ];
     }
 
+    /**
+     * أقل وقت وصول من كل الباصات الشغالة على الخط للمحطة الأولى
+     */
     private function getNextArrival($activeBuses): ?int
     {
-        // بترجع أقل وقت وصول بالدقائق من كل الباصات الشغالة
-        return $activeBuses
-            ->map(fn($bus) => optional($bus->location)->speed > 0 ? 5 : 10)
-            ->min();
+        if ($activeBuses->isEmpty()) {
+            return null;
+        }
+
+        // أول محطة بالخط (نقطة الانطلاق)
+        $firstStation = RouteStation::where('route_id', $this->id)
+            ->with('station')
+            ->orderBy('order_index')
+            ->first();
+
+        if (!$firstStation) {
+            return null;
+        }
+
+        $calculator = new ArrivalCalculator();
+
+        $times = $activeBuses
+            ->map(fn($bus) => $calculator->calculate($bus, $firstStation))
+            ->filter() // يشيل null
+            ->map(fn($result) => $result['minutes_away']);
+
+        return $times->isEmpty() ? null : $times->min();
     }
 
+    /**
+     * حالة الخط حسب متوسط سرعة الباصات الشغالة
+     */
     private function getLineStatus($activeBuses): string
     {
         if ($activeBuses->isEmpty()) {
