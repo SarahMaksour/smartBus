@@ -5,23 +5,21 @@ namespace App\Services\RouteSearch;
 use App\DTOs\RouteBusSegment;
 use App\DTOs\RouteSearchResult;
 use App\DTOs\RouteWalkSegment;
-use App\Services\DistanceCalculator;
 use Illuminate\Support\Collection;
 
 class RouteSearchService
 {
     // سرعة مشي افتراضية: متر بالدقيقة (~ 4.8 كم/س)
+    // هاد معيار لمشي الإنسان، لا علاقة له بـ GPS الباص
     private const WALKING_SPEED_MPM = 80;
 
     // إذا المسافة أقل من هاد، نعتبر "بدون مشي مطلوب"
     private const NO_WALK_THRESHOLD_METERS = 30;
 
-    // سرعة باص افتراضية للحساب (km/h) لو بدنا نحسب وقت تقديري بدون بيانات GPS لحظية
-    private const DEFAULT_BUS_SPEED_KMH = 20;
-
     public function __construct(
         private readonly NearbyStationFinder $nearbyStationFinder,
         private readonly DirectTripFinder $directTripFinder,
+        private readonly NextBusFinder $nextBusFinder,
     ) {}
 
     /**
@@ -42,9 +40,12 @@ class RouteSearchService
                 );
 
                 foreach ($trips as $trip) {
-                    $candidates->push(
-                        $this->buildResult($start, $end, $trip)
-                    );
+                    $result = $this->buildResult($start, $end, $trip);
+
+                    // إذا ما رجع شي (ما في باص فعلي بسرعة حقيقية) → استثني هاد الخط
+                    if ($result !== null) {
+                        $candidates->push($result);
+                    }
                 }
             }
         }
@@ -54,27 +55,53 @@ class RouteSearchService
 
     /**
      * يبني RouteSearchResult واحد من معطيات مرشح
+     *
+     * يرجع null إذا ما في باص شغال فعلياً على هاد الخط بسرعة حقيقية،
+     * لأنه بدون سرعة فعلية ما عنا أي بيانات حقيقية نحسب عليها وقت الرحلة
      */
-    private function buildResult(array $start, array $end, array $trip): RouteSearchResult
+    private function buildResult(array $start, array $end, array $trip): ?RouteSearchResult
     {
-        $walkToStation = $this->buildWalkSegment($start['distance_meters']);
+        $fromStation = $trip['route_station_from'];
+        $toStation   = $trip['route_station_to'];
+
+        // 1. لازم نلاقي باص فعلي شغال رايح لمحطة الانطلاق
+        $nextBus = $this->nextBusFinder->find(
+            routeId:       $fromStation->route_id,
+            targetStation: $fromStation,
+        );
+
+        // 2. بدون باص حقيقي بسرعة حقيقية، ما نقدر نحسب رحلة واقعية → استثني
+        if ($nextBus === null) {
+            return null;
+        }
+
+        // 3. وقت رحلة الباص بين المحطتين = المسافة ÷ سرعة الباص الفعلية
+        $busMinutes = $this->busMinutes(
+            distanceMeters: $trip['distance_meters'],
+            speedKmh:       $nextBus->speedKmh,
+        );
+
+        // 4. مشي المستخدم (يبقى بالمعيار العالمي 80م/د)
+        $walkToStation   = $this->buildWalkSegment($start['distance_meters']);
         $walkFromStation = $this->buildWalkSegment($end['distance_meters']);
 
-        $busMinutes = $this->busMinutes($trip['distance_meters']);
-
         $bus = new RouteBusSegment(
-            routeId:         $trip['route_station_from']->route_id,
-            routeCode:       $trip['route_station_from']->route->code,
-            routeName:       $trip['route_station_from']->route->name,
-            fromStationId:   $trip['route_station_from']->station_id,
-            fromStationName: $trip['route_station_from']->station->name,
-            toStationId:     $trip['route_station_to']->station_id,
-            toStationName:   $trip['route_station_to']->station->name,
+            routeId:         $fromStation->route_id,
+            routeCode:       $fromStation->route->code,
+            routeName:       $fromStation->route->name,
+            fromStationId:   $fromStation->station_id,
+            fromStationName: $fromStation->station->name,
+            toStationId:     $toStation->station_id,
+            toStationName:   $toStation->station->name,
             minutes:         $busMinutes,
             distanceMeters:  $trip['distance_meters'],
         );
 
-        $totalMinutes = $walkToStation->minutes + $busMinutes + $walkFromStation->minutes;
+        // 5. الوقت الكلي = مشي + انتظار الباص الفعلي + رحلة الباص + مشي
+        $totalMinutes = $walkToStation->minutes
+            + $nextBus->etaMinutes
+            + $busMinutes
+            + $walkFromStation->minutes;
 
         $totalDistance = $start['distance_meters']
             + $trip['distance_meters']
@@ -82,13 +109,14 @@ class RouteSearchService
 
         return new RouteSearchResult(
             token:               $this->generateToken($trip),
-            label:               '', // بيتحدد بـ rankAndLabel
+            label:               '',
             totalMinutes:        $totalMinutes,
             totalDistanceMeters: $totalDistance,
             stopsCount:          $trip['stops_count'],
             walkToStation:       $walkToStation,
             walkFromStation:     $walkFromStation,
             busSegment:          $bus,
+            nextBus:             $nextBus,
         );
     }
 
@@ -101,25 +129,24 @@ class RouteSearchService
         $minutes = (int) ceil($distanceMeters / self::WALKING_SPEED_MPM);
 
         return new RouteWalkSegment(
-            required:        true,
-            distanceMeters:  $distanceMeters,
-            minutes:         $minutes,
+            required:       true,
+            distanceMeters: $distanceMeters,
+            minutes:        $minutes,
         );
     }
 
-    private function busMinutes(float $distanceMeters): int
+    /**
+     * يحسب وقت رحلة الباص بين المحطتين باستخدام سرعته الفعلية الحالية من GPS
+     */
+    private function busMinutes(float $distanceMeters, float $speedKmh): int
     {
-        $speedMetersPerMinute = (self::DEFAULT_BUS_SPEED_KMH * 1000) / 60;
+        $speedMetersPerMinute = ($speedKmh * 1000) / 60;
 
         return (int) ceil($distanceMeters / $speedMetersPerMinute);
     }
 
     /**
      * يرتب النتائج ويعطي تصنيف "الأفضل" و "بديل سريع"
-     *
-     * المنطق:
-     * - "best" = أقل total_minutes
-     * - "fast_walk" = أقل مشي قبل الباص (walk_to_station)، إذا كان مختلف عن "best"
      *
      * @return RouteSearchResult[]
      */
@@ -129,7 +156,6 @@ class RouteSearchService
             return [];
         }
 
-        // أزل التكرارات: نفس route + نفس محطتين
         $unique = $candidates->unique(fn($c) =>
             $c->busSegment->routeId . '-' .
             $c->busSegment->fromStationId . '-' .
@@ -146,12 +172,10 @@ class RouteSearchService
 
         $results->push($this->withLabel($best, 'best'));
 
-        // أضف "بديل سريع" فقط إذا كان مختلف عن "الأفضل"
         if ($fastWalk->token !== $best->token) {
             $results->push($this->withLabel($fastWalk, 'fast_walk'));
         }
 
-        // أضف لحد 3 نتائج كحد أقصى بدون تكرار
         foreach ($sortedByTotal as $candidate) {
             if ($results->count() >= 3) {
                 break;
@@ -176,13 +200,10 @@ class RouteSearchService
             walkToStation:       $result->walkToStation,
             walkFromStation:     $result->walkFromStation,
             busSegment:          $result->busSegment,
+            nextBus:             $result->nextBus,
         );
     }
 
-    /**
-     * يبني token مؤقت يمثل هاي الرحلة، نستخدمه لاحقاً
-     * لجيب تفاصيل المسار (endpoint التفاصيل)
-     */
     private function generateToken(array $trip): string
     {
         return sprintf(
