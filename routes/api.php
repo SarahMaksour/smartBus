@@ -35,11 +35,12 @@ Route::put('/settings/notifications', [SettingsController::class, 'updateNotific
 
 
 //////////////////////neww
-Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
-    Route::prefix('home')->name('home.')->group(function () {
+   Route::prefix('home')->name('home.')->group(function () {
         Route::get('nearby-stations', [HomeController::class, 'nearbyStations'])->name('nearby-stations');
         Route::get('map-data',        [HomeController::class, 'mapData'])->name('map-data');
     });
+Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
+ 
 
      Route::prefix('buses')->group(function () {
         Route::get('/', [BusController::class, 'index'])->name('index');
