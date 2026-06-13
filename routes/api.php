@@ -35,7 +35,7 @@ Route::put('/settings/notifications', [SettingsController::class, 'updateNotific
 
 
 //////////////////////neww
-   Route::prefix('home')->name('home.')->group(function () {
+   Route::prefix('v1/home')->name('home.')->group(function () {
         Route::get('nearby-stations', [HomeController::class, 'nearbyStations'])->name('nearby-stations');
         Route::get('map-data',        [HomeController::class, 'mapData'])->name('map-data');
     });
