@@ -69,37 +69,82 @@ class GpsTcpServer extends Command
         fwrite($client, "ON");
     }
 
-    private function parseTK103(string $data): ?array
-    {
-        $parts = explode(',', $data);
-
-        if (count($parts) < 10) {
-            return null;
-        }
-
-        $imei   = trim(str_replace(['imei:', 'tracker'], '', $parts[0]));
-        $valid  = $parts[4] ?? '';
-        $latRaw = $parts[5] ?? 0;
-        $latDir = $parts[6] ?? 'N';
-        $lngRaw = $parts[7] ?? 0;
-        $lngDir = $parts[8] ?? 'E';
-        $speed  = round((float) ($parts[9] ?? 0) * 1.852, 2); // عقد بحرية → كم/س
-        $heading = (float) ($parts[10] ?? 0);
-
-        if (! $imei) {
-            return null;
-        }
-
-        return [
-            'imei'    => $imei,
-            'lat'     => $this->convertCoord($latRaw, $latDir),
-            'lng'     => $this->convertCoord($lngRaw, $lngDir),
-            'speed'   => $speed,
-            'heading' => $heading,
-            'valid'   => $valid,
-        ];
+   private function parseTK103(string $data): ?array
+{
+    // HQ Protocol: *HQ,IMEI,V1,HHMMSS,A,lat,N,lng,E,speed,course,date,...#
+    if (str_starts_with($data, '*HQ')) {
+        return $this->parseHQ($data);
     }
 
+    // TK103 Protocol القديم
+    $parts = explode(',', $data);
+
+    if (count($parts) < 10) {
+        return null;
+    }
+
+    $imei    = trim(str_replace(['imei:', 'tracker'], '', $parts[0]));
+    $latRaw  = $parts[5] ?? 0;
+    $latDir  = $parts[6] ?? 'N';
+    $lngRaw  = $parts[7] ?? 0;
+    $lngDir  = $parts[8] ?? 'E';
+    $speed   = round((float) ($parts[9] ?? 0) * 1.852, 2);
+    $heading = (float) ($parts[10] ?? 0);
+
+    if (! $imei) return null;
+
+    return [
+        'imei'    => $imei,
+        'lat'     => $this->convertCoord($latRaw, $latDir),
+        'lng'     => $this->convertCoord($lngRaw, $lngDir),
+        'speed'   => $speed,
+        'heading' => $heading,
+    ];
+}
+
+private function parseHQ(string $data): ?array
+{
+    // *HQ,867232055998802,V1,092738,A,3612.9842,N,03646.2642,E,0.00,0.00,301024,...#
+    $data  = trim($data, '*#');
+    $parts = explode(',', $data);
+
+    if (count($parts) < 10) {
+        return null;
+    }
+
+    $imei   = $parts[1] ?? null;
+    $type   = $parts[2] ?? '';   // V0 = heartbeat, V1 = GPS data
+    $valid  = $parts[4] ?? 'V';  // A = valid, V = invalid
+
+    // V0 = heartbeat packet (ما في GPS data)
+    if ($type === 'V0') {
+        $this->info("💓 Heartbeat من $imei");
+        return null;
+    }
+
+    // لو الإشارة مش valid
+    if ($valid !== 'A') {
+        $this->warn("⚠️ إشارة GPS ضعيفة");
+        return null;
+    }
+
+    $latRaw  = (float) ($parts[5] ?? 0);
+    $latDir  = $parts[6] ?? 'N';
+    $lngRaw  = (float) ($parts[7] ?? 0);
+    $lngDir  = $parts[8] ?? 'E';
+    $speed   = round((float) ($parts[9] ?? 0) * 1.852, 2);
+    $heading = (float) ($parts[10] ?? 0);
+
+    if (! $imei) return null;
+
+    return [
+        'imei'    => $imei,
+        'lat'     => $this->convertCoord($latRaw, $latDir),
+        'lng'     => $this->convertCoord($lngRaw, $lngDir),
+        'speed'   => $speed,
+        'heading' => $heading,
+    ];
+}
     private function convertCoord($value, string $dir): float
     {
         if (! $value) return 0;
