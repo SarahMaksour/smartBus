@@ -40,7 +40,7 @@ class GpsTcpServer extends Command
         }
     }
 
-/*   private function process($client, string $data): void
+   private function process($client, string $data): void
 {
     $this->info("📩 RAW: $data");
 
@@ -75,13 +75,7 @@ class GpsTcpServer extends Command
 
     fwrite($client, "ON");
 }
-*/
-private function process($client, string $data): void
-{
-    $this->info("📩 RAW HEX: " . bin2hex($data));
-    $this->info("📩 RAW STR: $data");
-    fwrite($client, "ON");
-}
+
    private function parseTK103(string $data): ?array
 {
     // HQ Protocol: *HQ,IMEI,V1,HHMMSS,A,lat,N,lng,E,speed,course,date,...#
