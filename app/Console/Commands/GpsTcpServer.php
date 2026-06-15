@@ -2,11 +2,15 @@
 
 namespace App\Console\Commands;
 
+use App\Models\Bus;
+use App\Models\BusLocation;
+use App\Models\GpsDevice;
+use App\Models\GpsLog;
 use Illuminate\Console\Command;
 
 class GpsTcpServer extends Command
 {
-    protected $signature = 'gps:serve {--port=14296}';
+    protected $signature   = 'gps:serve {--port=14296}';
     protected $description = 'TK103 GPS TCP Server';
 
     public function handle(): void
@@ -17,19 +21,19 @@ class GpsTcpServer extends Command
 
         $socket = stream_socket_server("tcp://0.0.0.0:$port", $errno, $errstr);
 
-        if (!$socket) {
+        if (! $socket) {
             $this->error("❌ Error: $errstr ($errno)");
             return;
         }
 
         while (true) {
             $client = @stream_socket_accept($socket, -1);
-            if (!$client) continue;
+            if (! $client) continue;
 
             $data = fread($client, 2048);
 
             if ($data) {
-                $this->process($client, $data);
+                $this->process($client, trim($data));
             }
 
             fclose($client);
@@ -38,22 +42,20 @@ class GpsTcpServer extends Command
 
     private function process($client, string $data): void
     {
-        $data = trim($data);
-
         $this->info("📩 RAW: $data");
 
-        // 🔐 Login packet
+        // Login packet
         if (str_starts_with($data, '##')) {
-            fwrite($client, "LOAD"); // مهم جدًا
+            fwrite($client, "LOAD");
             $this->info("🔐 LOGIN packet - replied LOAD");
             return;
         }
 
-        // 📡 Parse GPS packet
         $parsed = $this->parseTK103($data);
 
-        if (!$parsed) {
+        if (! $parsed) {
             $this->warn("❌ Unrecognized packet");
+            fwrite($client, "ON");
             return;
         }
 
@@ -61,7 +63,9 @@ class GpsTcpServer extends Command
         $this->info("📍 LAT: {$parsed['lat']} LNG: {$parsed['lng']}");
         $this->info("🚗 SPEED: {$parsed['speed']} km/h");
 
-        // 📤 رد للجهاز (مهم لاستمرار الإرسال)
+        // خزن بقاعدة البيانات
+        $this->saveLocation($parsed);
+
         fwrite($client, "ON");
     }
 
@@ -73,42 +77,91 @@ class GpsTcpServer extends Command
             return null;
         }
 
-        // IMEI
-        $imei = str_replace(['imei:', 'tracker'], '', $parts[0]);
-
-        // GPS data
-        $valid = $parts[4] ?? '';
-
+        $imei   = trim(str_replace(['imei:', 'tracker'], '', $parts[0]));
+        $valid  = $parts[4] ?? '';
         $latRaw = $parts[5] ?? 0;
         $latDir = $parts[6] ?? 'N';
-
         $lngRaw = $parts[7] ?? 0;
         $lngDir = $parts[8] ?? 'E';
+        $speed  = round((float) ($parts[9] ?? 0) * 1.852, 2); // عقد بحرية → كم/س
+        $heading = (float) ($parts[10] ?? 0);
 
-        $speed = (float) ($parts[9] ?? 0);
+        if (! $imei) {
+            return null;
+        }
 
         return [
-            'imei' => $imei,
-            'lat' => $this->convertCoord($latRaw, $latDir),
-            'lng' => $this->convertCoord($lngRaw, $lngDir),
-            'speed' => $speed,
-            'valid' => $valid,
+            'imei'    => $imei,
+            'lat'     => $this->convertCoord($latRaw, $latDir),
+            'lng'     => $this->convertCoord($lngRaw, $lngDir),
+            'speed'   => $speed,
+            'heading' => $heading,
+            'valid'   => $valid,
         ];
     }
 
-    private function convertCoord($value, $dir)
+    private function convertCoord($value, string $dir): float
     {
-        if (!$value) return 0;
+        if (! $value) return 0;
 
-        $deg = floor($value / 100);
-        $min = $value - ($deg * 100);
-
+        $deg   = floor($value / 100);
+        $min   = $value - ($deg * 100);
         $coord = $deg + ($min / 60);
 
         if ($dir === 'S' || $dir === 'W') {
             $coord *= -1;
         }
 
-        return $coord;
+        return round($coord, 7);
+    }
+
+    private function saveLocation(array $data): void
+    {
+        $device = GpsDevice::where('imei', $data['imei'])->first();
+
+        if (! $device) {
+            $this->warn("⚠️ جهاز غير معروف IMEI: {$data['imei']}");
+            return;
+        }
+
+        $bus = Bus::where('gps_device_id', $device->id)
+            ->where('status', 'active')
+            ->first();
+
+        if (! $bus) {
+            $this->warn("⚠️ ما في باص مرتبط بالجهاز: {$data['imei']}");
+            return;
+        }
+
+        $now = now();
+
+        // حدّث الموقع الحالي
+        BusLocation::updateOrCreate(
+            ['bus_id' => $bus->id],
+            [
+                'lat'         => $data['lat'],
+                'lng'         => $data['lng'],
+                'speed'       => $data['speed'],
+                'heading'     => $data['heading'],
+                'is_online'   => true,
+                'recorded_at' => $now,
+            ]
+        );
+
+        // خزّن بالتاريخ
+        GpsLog::create([
+            'bus_id'      => $bus->id,
+            'lat'         => $data['lat'],
+            'lng'         => $data['lng'],
+            'speed'       => $data['speed'],
+            'heading'     => $data['heading'],
+            'is_online'   => true,
+            'recorded_at' => $now,
+        ]);
+
+        // حدّث last_seen_at
+        $device->update(['last_seen_at' => $now]);
+
+        $this->info("✅ باص {$bus->plate_number}: {$data['lat']}, {$data['lng']} | {$data['speed']} كم/س");
     }
 }
