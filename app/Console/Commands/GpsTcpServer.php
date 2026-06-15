@@ -40,34 +40,41 @@ class GpsTcpServer extends Command
         }
     }
 
-    private function process($client, string $data): void
-    {
-        $this->info("📩 RAW: $data");
+   private function process($client, string $data): void
+{
+    $this->info("📩 RAW: $data");
 
-        // Login packet
-        if (str_starts_with($data, '##')) {
-            fwrite($client, "LOAD");
-            $this->info("🔐 LOGIN packet - replied LOAD");
-            return;
-        }
-
-        $parsed = $this->parseTK103($data);
-
-        if (! $parsed) {
-            $this->warn("❌ Unrecognized packet");
-            fwrite($client, "ON");
-            return;
-        }
-
-        $this->info("📍 IMEI: {$parsed['imei']}");
-        $this->info("📍 LAT: {$parsed['lat']} LNG: {$parsed['lng']}");
-        $this->info("🚗 SPEED: {$parsed['speed']} km/h");
-
-        // خزن بقاعدة البيانات
-        $this->saveLocation($parsed);
-
-        fwrite($client, "ON");
+    // Login packet
+    if (str_starts_with($data, '##')) {
+        fwrite($client, "LOAD");
+        $this->info("🔐 LOGIN packet - replied LOAD");
+        return;
     }
+
+    // Heartbeat packet
+    if (str_contains($data, 'V0')) {
+        $imei = explode(',', trim($data, '*#'))[1] ?? 'unknown';
+        $this->info("💓 Heartbeat من $imei");
+        fwrite($client, "ON");
+        return;
+    }
+
+    $parsed = $this->parseTK103($data);
+
+    if (! $parsed) {
+        $this->warn("❌ Unrecognized packet");
+        fwrite($client, "ON");
+        return;
+    }
+
+    $this->info("📍 IMEI: {$parsed['imei']}");
+    $this->info("📍 LAT: {$parsed['lat']} LNG: {$parsed['lng']}");
+    $this->info("🚗 SPEED: {$parsed['speed']} km/h");
+
+    $this->saveLocation($parsed);
+
+    fwrite($client, "ON");
+}
 
    private function parseTK103(string $data): ?array
 {
