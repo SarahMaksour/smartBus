@@ -1,7 +1,7 @@
 <?php
 
 namespace App\Http\Controllers\Auth;
-
+use App\Services\PasswordResetService;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use Illuminate\Http\Request;
@@ -10,16 +10,21 @@ use Illuminate\Support\Facades\Hash;
 
 class AuthController extends Controller
 {
+    public function __construct(
+    private readonly PasswordResetService $passwordResetService,
+) {}
    public function register(Request $request)
 {
     $validated = $request->validate([
-        'name' => 'required|string|max:255',
+        'first_name' => 'required|string|max:255',
+        'last_name' => 'required|string|max:255',
         'email' => 'required|string|email|unique:users,email',
-        'password' => 'required|string|min:8',
+        'password' => 'required|string|min:8|confirmation',
     ]);
 
     $user = User::create([
-        'name' => $validated['name'],
+        'first_name' => $validated['first_name'],
+        'last_name'=>$validated['last_name'],
         'email' => $validated['email'],
         'password' => Hash::make($validated['password']),
     ]);
@@ -31,7 +36,8 @@ class AuthController extends Controller
         'token' => $token,
         'user' => [
             'id' => $user->id,
-            'name' => $user->name,
+            'first_name' => $user->first_name,
+             'last_name' => $user->last_name,
             'email' => $user->email,
         ]
     ], 201);
@@ -59,7 +65,8 @@ public function login(Request $request)
         'token' => $token,
         'user' => [
             'id' => $user->id,
-            'name' => $user->name,
+            'first_name' => $user->first_name,
+             'last_name' => $user->last_name,
             'email' => $user->email,
         ]
     ], 200);
@@ -79,7 +86,8 @@ public function update(Request $request)
     $user = $request->user();
 
     $validated = $request->validate([
-        'name' => 'nullable|string|max:255',
+        'first_name' => 'required|string|max:255',
+        'last_name' => 'required|string|max:255',
         'email' => 'nullable|email|unique:users,email,' . $user->id,
     ]);
 
@@ -89,7 +97,8 @@ public function update(Request $request)
         'success' => true,
         'user' => [
             'id' => $user->id,
-            'name' => $user->name,
+           'first_name' => $user->first_name,
+             'last_name' => $user->last_name,
             'email' => $user->email,
         ]
     ]);
@@ -134,6 +143,74 @@ public function saveFcmToken(Request $request)
 
     return response()->json([
         'success' => true
+    ]);
+}
+public function forgotPassword(Request $request)
+{
+    $request->validate([
+        'email' => ['required', 'email'],
+    ]);
+
+    $result = $this->passwordResetService->sendOtp($request->email);
+
+    if (! $result['found']) {
+        return response()->json([
+            'message' => 'الإيميل غير مسجل',
+        ], 404);
+    }
+
+    return response()->json([
+        'message' => 'تم إرسال كود التحقق',
+        'otp'     => $result['otp'],
+    ]);
+}
+
+public function verifyOtp(Request $request)
+{
+    $request->validate([
+        'email' => ['required', 'email'],
+        'otp'   => ['required', 'string', 'size:6'],
+    ]);
+
+    $valid = $this->passwordResetService->verifyOtp(
+        $request->email,
+        $request->otp,
+    );
+
+    if (! $valid) {
+        return response()->json([
+            'message' => 'الكود غير صحيح أو منتهي الصلاحية',
+        ], 422);
+    }
+
+    return response()->json([
+        'message' => 'الكود صحيح',
+    ]);
+}
+
+public function resetPassword(Request $request)
+{
+    $request->validate([
+        'email'                 => ['required', 'email'],
+        'otp'                   => ['required', 'string', 'size:6'],
+        'password'              => ['required', 'min:8', 'confirmed'],
+        'password_confirmation' => ['required'],
+    ]);
+
+    $reset = $this->passwordResetService->resetPassword(
+        $request->email,
+        $request->otp,
+        $request->password,
+    );
+
+    if (! $reset) {
+        return response()->json([
+            'message' => 'الكود غير صحيح أو منتهي الصلاحية',
+        ], 422);
+    }
+
+    return response()->json([
+        'message' => 'تم تغيير كلمة المرور بنجاح',
     ]);
 }
 }

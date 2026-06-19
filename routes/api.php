@@ -15,6 +15,10 @@ use Illuminate\Support\Facades\Route;
 //Auth
 Route::post('/auth/register', [AuthController::class, 'register']);
 Route::post('/auth/login', [AuthController::class, 'login']);
+ Route::post('forgot-password', [AuthController::class, 'forgotPassword']);
+    Route::post('verify-otp',      [AuthController::class, 'verifyOtp']);
+    Route::post('reset-password',  [AuthController::class, 'resetPassword']);
+
 Route::post('/auth/logout', [AuthController::class, 'logout'])->middleware('auth:sanctum');
 Route::put('/auth/update', [AuthController::class, 'update'])->middleware('auth:sanctum');
 Route::put('/auth/change-password', [AuthController::class, 'changePassword'])->middleware('auth:sanctum');
