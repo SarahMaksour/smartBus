@@ -30,17 +30,18 @@ class PasswordResetService
         return ['found' => true, 'otp' => $otp];
     }
 
-    public function verifyOtp(string $email, string $otp): bool
-    {
-        $record = PasswordResetOtp::where('email', $email)
-            ->where('is_used', false)
-            ->latest()
-            ->first();
+   public function verifyOtp(string $email, string $otp): bool
+{
+    $record = PasswordResetOtp::where('email', $email)
+        ->where('is_used', false)
+        ->latest()
+        ->first();
 
-        if (! $record) return false;
+    if (! $record) return false;
 
-        return $record->isValid($otp);
-    }
+    // بس تحقق، ما تحدد is_used
+    return $record->isValid($otp);
+}
 
     public function resetPassword(string $email, string $otp, string $newPassword): bool
     {
