@@ -16,14 +16,7 @@ class OtpMail extends Mailable
 
     public function build()
     {
-        return $this->subject('كود إعادة تعيين كلمة المرور - SmartBus')
-            ->html("
-                <div style='font-family: Arial; direction: rtl; text-align: right; padding: 20px;'>
-                    <h2 style='color: #1D9E75;'>SmartBus</h2>
-                    <p>كود التحقق الخاص بك:</p>
-                    <h1 style='color: #4F46E5; letter-spacing: 10px;'>{$this->otp}</h1>
-                    <p>صالح لمدة 10 دقائق فقط.</p>
-                </div>
-            ");
+        return $this->subject('كود إعادة تعيين كلمة المرور')
+            ->html("<h1>كود التحقق: {$this->otp}</h1>");
     }
 }
