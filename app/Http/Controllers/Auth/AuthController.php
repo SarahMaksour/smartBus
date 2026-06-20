@@ -39,6 +39,7 @@ class AuthController extends Controller
             'first_name' => $user->first_name,
              'last_name' => $user->last_name,
             'email' => $user->email,
+            'is_admin' => $user->hasRole('admin')
         ]
     ], 201);
 }
@@ -68,6 +69,7 @@ public function login(Request $request)
             'first_name' => $user->first_name,
              'last_name' => $user->last_name,
             'email' => $user->email,
+            'is_admin' => $user->hasRole('admin')
         ]
     ], 200);
 }
