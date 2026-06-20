@@ -162,8 +162,7 @@ public function forgotPassword(Request $request)
     }
 
     return response()->json([
-        'message' => 'تم إرسال كود التحقق',
-        'otp'     => $result['otp'],
+        'message' => 'تم إرسال كود التحقق إلى بريدك الإلكتروني',
     ]);
 }
 
