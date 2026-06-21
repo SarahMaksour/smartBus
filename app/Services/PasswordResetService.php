@@ -5,48 +5,59 @@ namespace App\Services;
 use App\Models\PasswordResetOtp;
 use App\Models\User;
 use Illuminate\Support\Facades\Hash;
-use Illuminate\Support\Facades\Mail;
-use App\Mail\OtpMail;
+use Illuminate\Support\Facades\Http;
+
 class PasswordResetService
 {
-   public function sendOtp(string $email): array
-{
-    $user = User::where('email', $email)->first();
+    public function sendOtp(string $email): array
+    {
+        $user = User::where('email', $email)->first();
 
-    if (! $user) {
-        return ['found' => false];
+        if (! $user) {
+            return ['found' => false];
+        }
+
+        PasswordResetOtp::where('email', $email)->delete();
+
+        $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+
+        PasswordResetOtp::create([
+            'email'      => $email,
+            'otp'        => $otp,
+            'is_used'    => false,
+            'expires_at' => now()->addMinutes(10),
+        ]);
+
+        $this->sendViaApi($email, $otp);
+
+        return ['found' => true];
     }
 
-    PasswordResetOtp::where('email', $email)->delete();
+    private function sendViaApi(string $email, string $otp): void
+    {
+        $token   = config('services.mailtrap.token');
+        $inboxId = config('services.mailtrap.inbox_id');
 
-    $otp = str_pad(random_int(0, 999999), 6, '0', STR_PAD_LEFT);
+        Http::withToken($token)
+            ->post("https://sandbox.api.mailtrap.io/api/send/{$inboxId}", [
+                'from'    => ['email' => 'noreply@smartbus.com', 'name' => 'SmartBus'],
+                'to'      => [['email' => $email]],
+                'subject' => 'كود إعادة تعيين كلمة المرور - SmartBus',
+                'html'    => "<h1>كود التحقق: {$otp}</h1><p>صالح لمدة 10 دقائق.</p>",
+            ]);
+    }
 
-    PasswordResetOtp::create([
-        'email'      => $email,
-        'otp'        => $otp,
-        'is_used'    => false,
-        'expires_at' => now()->addMinutes(10),
-    ]);
+    public function verifyOtp(string $email, string $otp): bool
+    {
+        $record = PasswordResetOtp::where('email', $email)
+            ->where('is_used', false)
+            ->latest()
+            ->first();
 
-    Mail::to($email)->send(
-        new OtpMail($otp)
-    );
+        if (! $record) return false;
 
-    return ['found' => true];
-}
-
-   public function verifyOtp(string $email, string $otp): bool
-{
-    $record = PasswordResetOtp::where('email', $email)
-        ->where('is_used', false)
-        ->latest()
-        ->first();
-
-    if (! $record) return false;
-
-    // بس تحقق، ما تحدد is_used
-    return $record->isValid($otp);
-}
+        return $record->isValid($otp);
+    }
 
     public function resetPassword(string $email, string $otp, string $newPassword): bool
     {
