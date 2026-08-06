@@ -42,6 +42,13 @@ class GpsTcpServer extends Command
 
    private function process($client, string $data): void
 {
+    file_put_contents(
+    storage_path('logs/raw_gps.log'),
+    "\n====================\n".
+    date('Y-m-d H:i:s')."\n".
+    $data."\n",
+    FILE_APPEND
+);
     $this->info("📩 RAW: $data");
 
     // Login packet
