@@ -26,46 +26,22 @@ class GpsTcpServer extends Command
             return;
         }
 
-       while (true) {
+        while (true) {
+            $client = @stream_socket_accept($socket, -1);
+            if (! $client) continue;
 
-    $client = @stream_socket_accept($socket, -1);
+            $data = fread($client, 2048);
 
-    if (! $client) {
-        continue;
-    }
+            if ($data) {
+                $this->process($client, trim($data));
+            }
 
-    stream_set_timeout($client, 15);
-
-    while (!feof($client)) {
-
-        $data = fread($client, 2048);
-
-        if ($data === false || trim($data) === '') {
-            break;
+            fclose($client);
         }
-
-        $data = trim($data);
-
-        $this->info("📩 RAW: $data");
-        $this->info("📦 HEX: " . bin2hex($data));
-
-        $this->process($client, $data);
-    }
-
-    fclose($client);
-}
     }
 
    private function process($client, string $data): void
 {
-    file_put_contents(
-    storage_path('logs/gps_raw.log'),
-    date('Y-m-d H:i:s') .
-    " => " .
-    $data .
-    PHP_EOL,
-    FILE_APPEND
-);
     $this->info("📩 RAW: $data");
 
     // Login packet
@@ -76,16 +52,12 @@ class GpsTcpServer extends Command
     }
 
     // Heartbeat packet
-if (trim($data) === '*HQ,867232055998802,V0#') {
-
-    $imei = explode(',', trim($data, '*#'))[1] ?? 'unknown';
-
-    $this->info("💓 Heartbeat من $imei");
-
-    fwrite($client, "ON");
-
-    return;
-}
+    if (str_contains($data, 'V0')) {
+        $imei = explode(',', trim($data, '*#'))[1] ?? 'unknown';
+        $this->info("💓 Heartbeat من $imei");
+        fwrite($client, "ON");
+        return;
+    }
 
     $parsed = $this->parseTK103($data);
 
