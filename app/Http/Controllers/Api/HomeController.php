@@ -24,17 +24,21 @@ class HomeController extends Controller
         return StationNearbyResource::collection($stations);
     }
 
-    public function mapData(NearbyRequest $request)
-    {
-        $data = $this->homeService->getMapData(
-            lat:    $request->float('lat'),
-            lng:    $request->float('lng'),
-            radius: $request->radius(),
-        );
+public function mapData(NearbyRequest $request)
+{
+    $allStations = \App\Models\Station::where('is_active', true)
+                                      ->select('id', 'name', 'lat', 'lng')
+                                      ->get();
 
-        return response()->json([
-            'stations' => StationNearbyResource::collection($data['stations']),
-            'buses'    => BusMapResource::collection($data['buses']),
-        ]);
-    }
+    $buses = $this->homeService->getMapData(
+        lat:    $request->float('lat'),
+        lng:    $request->float('lng'),
+        radius: $request->radius(),
+    )['buses'];
+
+    return response()->json([
+        'stations' => $allStations,
+        'buses'    => BusMapResource::collection($buses),
+    ]);
+}
 }
