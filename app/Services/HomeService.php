@@ -27,11 +27,11 @@ class HomeService implements HomeServiceInterface
             });
     }
 
-    public function getMapData(float $lat, float $lng, int $radius): array
-    {
-        return [
-            'stations' => $this->stationRepository->findNearby($lat, $lng, $radius),
-            'buses'    => $this->busRepository->getActiveWithLocation(),
-        ];
-    }
+   public function getMapData(float $lat, float $lng, int $radius): array
+{
+    return [
+        'stations' => $this->stationRepository->findNearby($lat, $lng, 999999),
+        'buses'    => $this->busRepository->getActiveWithLocation(),
+    ];
+}
 }
