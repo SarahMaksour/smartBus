@@ -54,4 +54,6 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('/favorites/toggle', [FavoriteController::class, 'toggle']);
     Route::post('routes/search', [RouteSearchController::class, 'search']);
     Route::get('routes/details/{token}', [RouteDetailsController::class, 'show']);
+    Route::get('routes/{id}', [RouteController::class, 'show']);
+
 });
