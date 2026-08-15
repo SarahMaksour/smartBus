@@ -1,16 +1,15 @@
 <?php
 
 use App\Http\Controllers\Api\BusController;
+use App\Http\Controllers\Api\BusTrackingController;
 use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\HomeController;
+use App\Http\Controllers\Api\RouteController;
 use App\Http\Controllers\Api\RouteDetailsController;
 use App\Http\Controllers\Api\RouteSearchController;
-use App\Http\Controllers\Api\RouteController;
-
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\GPS\DeviceGPSController;
 use App\Http\Controllers\GPS\GPSController; 
-//e App\Http\Controllers\Route\RouteController;
 use App\Http\Controllers\Settings\SettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -58,5 +57,5 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::post('routes/search', [RouteSearchController::class, 'search']);
     Route::get('routes/details/{token}', [RouteDetailsController::class, 'show']);
     Route::get('routes/{id}', [RouteController::class, 'show']);
-
+Route::get('buses/{id}/track', [BusTrackingController::class, 'track']);
 });
