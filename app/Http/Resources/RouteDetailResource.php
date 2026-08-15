@@ -7,8 +7,9 @@ class RouteDetailResource extends JsonResource
 {
     public function toArray($request): array
     {
-        $activeBuses = $this->buses->where('status', 'active');
-
+        $activeBuses = $this->buses
+    ->where('status', 'active')
+    ->filter(fn($bus) => $bus->location !== null); 
         return [
             'id'                  => $this->id,
             'code'                => $this->code,
