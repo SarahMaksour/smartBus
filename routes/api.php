@@ -5,10 +5,12 @@ use App\Http\Controllers\Api\FavoriteController;
 use App\Http\Controllers\Api\HomeController;
 use App\Http\Controllers\Api\RouteDetailsController;
 use App\Http\Controllers\Api\RouteSearchController;
+use App\Http\Controllers\Api\RouteController;
+
 use App\Http\Controllers\Auth\AuthController;
 use App\Http\Controllers\GPS\DeviceGPSController;
-use App\Http\Controllers\GPS\GPSController;
-use App\Http\Controllers\Route\RouteController;
+use App\Http\Controllers\GPS\GPSController; 
+//e App\Http\Controllers\Route\RouteController;
 use App\Http\Controllers\Settings\SettingsController;
 use Illuminate\Support\Facades\Route;
 
@@ -30,10 +32,11 @@ Route::get('/bus/{id}/location', [GPSController::class, 'location']);
 Route::post('/device/gps', [DeviceGPSController::class, 'receive']);
 
 //route
+/*
 Route::get('/routes', [RouteController::class, 'index']);
 Route::get('/routes/{id}', [RouteController::class, 'show']);
 Route::get('/routes/{id}/stops', [RouteController::class, 'stops']);
-Route::get('/routes/{id}/path', [RouteController::class, 'path']);
+Route::get('/routes/{id}/path', [RouteController::class, 'path']);*/
 //setting
 Route::put('/settings/notifications', [SettingsController::class, 'updateNotifications'])->middleware('auth:sanctum');
 
