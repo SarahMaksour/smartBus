@@ -12,6 +12,7 @@ use App\Http\Controllers\GPS\DeviceGPSController;
 use App\Http\Controllers\GPS\GPSController; 
 use App\Http\Controllers\Settings\SettingsController;
 use Illuminate\Support\Facades\Route;
+use App\Http\Controllers\Api\DriverLocationController;
 
 //Auth
 Route::post('/auth/register', [AuthController::class, 'register']);
@@ -58,4 +59,9 @@ Route::middleware('auth:sanctum')->prefix('v1')->group(function () {
     Route::get('routes/details/{token}', [RouteDetailsController::class, 'show']);
     Route::get('routes/{id}', [RouteController::class, 'show']);
 Route::get('buses/{id}/track', [BusTrackingController::class, 'track']);
+});
+Route::middleware('auth:sanctum')->prefix('v1/driver')->group(function () {
+    Route::post('location', [DriverLocationController::class, 'store']);
+    Route::post('start-trip', [DriverLocationController::class, 'startTrip']);
+    Route::post('end-trip', [DriverLocationController::class, 'endTrip']);
 });
