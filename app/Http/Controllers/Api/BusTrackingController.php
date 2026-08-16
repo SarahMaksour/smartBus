@@ -13,7 +13,7 @@ class BusTrackingController extends Controller
             ->with([
                 'location',
                 'route.routeStations.station',
-                'route.paths',
+              
             ])
             ->findOrFail($id);
 

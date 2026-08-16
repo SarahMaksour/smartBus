@@ -103,15 +103,16 @@ class BusTrackingResource extends JsonResource
         return (int) ceil($distance / (($speed * 1000) / 60));
     }
 
-    private function getRoutePath(): array
-    {
-        return $this->route->paths
-            ->sortBy('order_index')
-            ->map(fn($p) => [
-                'lat' => (float) $p->lat,
-                'lng' => (float) $p->lng,
-            ])
-            ->values()
-            ->all();
-    }
+   // حطي هاد
+private function getRoutePath(): array
+{
+    return $this->route->routeStations
+        ->sortBy('order_index')
+        ->map(fn($rs) => [
+            'lat' => (float) $rs->station->lat,
+            'lng' => (float) $rs->station->lng,
+        ])
+        ->values()
+        ->all();
+}
 }
