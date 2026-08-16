@@ -22,7 +22,7 @@ class User extends Authenticatable
 
     protected $fillable = [
         'first_name','last_name', 'email', 'password',
-        'fcm_token', 'notifications_enable', 'is_active',
+        'fcm_token', 'notifications_enable', 'is_active','assigned_bus_id',
     ];
     /**
      * The attributes that should be hidden for serialization.
@@ -45,6 +45,10 @@ class User extends Authenticatable
     {
         return $this->hasMany(Notification::class);
     }
+    public function assignedBus()
+{
+    return $this->belongsTo(Bus::class, 'assigned_bus_id');
+}
     /**
      * Get the attributes that should be cast.
      *
@@ -57,4 +61,5 @@ class User extends Authenticatable
             'password' => 'hashed',
         ];
     }
+    
 }
