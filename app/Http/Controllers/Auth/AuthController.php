@@ -88,8 +88,8 @@ public function update(Request $request)
     $user = $request->user();
 
     $validated = $request->validate([
-        'first_name' => 'required|string|max:255',
-        'last_name' => 'required|string|max:255',
+        'first_name' => 'string|max:255',
+        'last_name' => 'string|max:255',
         'email' => 'nullable|email|unique:users,email,' . $user->id,
     ]);
 
